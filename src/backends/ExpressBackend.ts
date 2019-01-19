@@ -1,5 +1,5 @@
 import express, { Application, Request, Response, NextFunction, static as expressStatic } from "express";
-import { WebBackend, WebOpts, ParsedRoute, RouteHandler, WebService, Request as WSRequest, Response as WSResponse } from "./WebServer";
+import { WebBackend, WebOpts, ParsedRoute, RouteHandler, WebService, Request as WSRequest, Response as WSResponse } from "../WebServer";
 import { Server } from "net";
 
 class RequestWrapper implements WSRequest {
