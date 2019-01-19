@@ -2,7 +2,7 @@
   "name": "webserver",
   "version": "0.0.1",
   "scripts": {
-    "build": "bash -lic ./scripts/push-build.sh",
+    "build": "bash -e ./scripts/push-build.sh",
     "tsc-build": "tsc"
   },
   "devDependencies": {
