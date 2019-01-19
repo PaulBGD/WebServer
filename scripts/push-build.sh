@@ -6,7 +6,7 @@ git checkout build
 git merge master
 git checkout master -- src/
 yarn tsc-build
-rm -rf src/
+git rm -r --cached src/
 git add --force ./lib/
 git commit -m 'build'
 git push origin build
