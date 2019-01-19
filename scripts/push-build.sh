@@ -4,7 +4,7 @@ set -e
 
 git checkout build
 git merge master
-yarn build
+yarn tsc-build
 git add --force ./lib/
 git commit -m 'build'
 git push origin build
