@@ -5,6 +5,7 @@ set -e
 git checkout build
 git merge master
 yarn build
-git add --all
+rm -rf src/
+git add --force ./lib/
 git commit -m 'build'
 git push origin build
