@@ -105,7 +105,7 @@ export default class UWSBackend extends WebBackend {
             } else if (route.method === "PATCH") {
                 this.app.patch(route.route, handler);
             } else if (route.method === "DELETE") {
-                this.app.delete(route.route, handler);
+                this.app.del(route.route, handler);
             } else if (route.method === "PUT") {
                 this.app.put(route.route, handler);
             }
