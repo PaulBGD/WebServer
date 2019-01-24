@@ -16,9 +16,12 @@ export class DataTypeError extends Error {
     }
 }
 
-export const StringType = (opts: StringOpts) => (name: string, data: any): DataType<string> => {
+export const StringType = (opts: StringOpts): DataType<string | null> => (name: string, data: any) => {
     if (opts.required && !data) {
         throw new DataTypeError(name, "not provided");
+    }
+    if (!opts.required && !data) {
+        return null;
     }
     if (typeof data !== "string") {
         throw new DataTypeError(name, "not string");
