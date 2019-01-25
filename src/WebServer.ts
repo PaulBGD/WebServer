@@ -154,19 +154,8 @@ export class WebService extends EventEmitter {
     }
 }
 
-export type RouteHandler = (req: Request, res: Response, component: <T extends Component>(type: ComponentStatic<T>) => Promise<T>) => Promise<any> | any;
+export type RouteHandler = (req: Request, res: Response, component: <T>(type: ComponentStatic<T>) => T) => Promise<any> | any;
 
 type RouteObject = { [key: string]: RouteHandler | RouteObject };
 
-interface ComponentStatic<T extends Component> {
-    new (service: WebService, req: Request, res: Response): T;
-    component: string;
-}
-
-export class Component {
-    constructor(protected service: WebService, protected req: Request, protected res: Response) {}
-
-    public init(): Promise<any> {
-        return Promise.resolve();
-    }
-}
+type ComponentStatic<T> = (service: WebService, req: Request, res: Response) => T;

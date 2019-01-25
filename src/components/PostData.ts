@@ -1,4 +1,4 @@
-import { Component } from "../WebServer";
+import { Request, Response, WebService } from "../WebServer";
 import { parse, ParsedUrlQuery } from "querystring";
 
 // class CaselessMap<V> extends Map<string, V> {
@@ -19,36 +19,32 @@ import { parse, ParsedUrlQuery } from "querystring";
 //     }
 // }
 
-export class BodyParser extends Component {
-    public static component = "WebServer/BodyParser";
-
-    public async getBody(): Promise<{ [key: string]: string | string[] } | null> {
-        const type = this.req.getHeader("Content-Type");
-        if (!type) {
-            return null;
-        }
-        const split = type.split(";");
-        // todo handle more than form-urlencoded and utf-8
-        if (split[0] !== "application/x-www-form-urlencoded" || (split.length > 1 && split[1] !== "charset=utf-8")) {
-            return null;
-        }
-
-        const buffers: Buffer[] = [];
-        this.req.stream.on("data", chunk => buffers.push(chunk));
-
-        const buffer = await new Promise<Buffer>((resolve, reject) => {
-            this.req.stream.once("error", err => reject(err));
-            this.req.stream.once("end", () => resolve(Buffer.concat(buffers)));
-        });
-        let encoded: ParsedUrlQuery;
-        try {
-            encoded = parse(buffer.toString("UTF8"));
-        } catch (err) {
-            // todo use debug module
-            console.error("Ran into error decoding x-www-form-urlencoded content", err);
-            return null;
-        }
-
-        return encoded;
+export default (service: WebService, req: Request, res: Response) => async (): Promise<{ [key: string]: string | string[] } | null> => {
+    const type = req.getHeader("Content-Type");
+    if (!type) {
+        return null;
     }
-}
+    const split = type.split(";");
+    // todo handle more than form-urlencoded and utf-8
+    if (split[0] !== "application/x-www-form-urlencoded" || (split.length > 1 && split[1] !== "charset=utf-8")) {
+        return null;
+    }
+
+    const buffers: Buffer[] = [];
+    req.stream.on("data", chunk => buffers.push(chunk));
+
+    const buffer = await new Promise<Buffer>((resolve, reject) => {
+        req.stream.once("error", err => reject(err));
+        req.stream.once("end", () => resolve(Buffer.concat(buffers)));
+    });
+    let encoded: ParsedUrlQuery;
+    try {
+        encoded = parse(buffer.toString("UTF8"));
+    } catch (err) {
+        // todo use debug module
+        console.error("Ran into error decoding x-www-form-urlencoded content", err);
+        return null;
+    }
+
+    return encoded;
+};

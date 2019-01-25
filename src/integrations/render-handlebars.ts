@@ -1,17 +1,18 @@
-import { Component } from "../WebServer";
 import { readFile } from "fs";
 import { compile } from "handlebars";
+import { WebService, Request, Response } from "../WebServer";
 
-export class HandlebarsComponent extends Component {
-    public static component = "Handlebars.js";
-    static compiled: { [key: string]: HandlebarsTemplateDelegate } = {};
+const PROD_TEMPLATES: { [key: string]: HandlebarsTemplateDelegate } = {};
 
-    public async renderFile(sourceFile: string, data?: any) {
-        if (process.env.NODE_ENV === "production" && HandlebarsComponent.compiled[sourceFile]) {
-            return this.res.send(HandlebarsComponent.compiled[sourceFile](data));
-        }
-        const source = await new Promise<string>((resolve, reject) => readFile(sourceFile, "utf8", (err, file) => (err ? reject(err) : resolve(file))));
-        const compiled = (HandlebarsComponent.compiled[sourceFile] = compile(source));
-        return this.res.send(compiled(data));
+export default (service: WebService, req: Request, res: Response) => async (sourceFile: string, data?: any) => {
+    let cachedTemplate;
+    if (process.env.NODE_ENV === "production" && (cachedTemplate = PROD_TEMPLATES[sourceFile])) {
+        return res.send(cachedTemplate(data));
     }
-}
+    const source = await new Promise<string>((resolve, reject) => readFile(sourceFile, "utf8", (err, file) => (err ? reject(err) : resolve(file))));
+    const compiled = compile(source);
+    if (process.env.NODE_ENV === "production") {
+        PROD_TEMPLATES[sourceFile] = compiled;
+    }
+    return res.send(compiled(data));
+};

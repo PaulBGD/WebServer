@@ -84,11 +84,7 @@ export default class UWSBackend extends WebBackend {
                 const req = new RequestWrapper(eReq);
                 const res = new ResponseWrapper(eRes);
                 try {
-                    const response = func(req, res, async Comp => {
-                        const comp = new Comp(this.webService, req, res);
-                        await comp.init();
-                        return comp;
-                    });
+                    const response = func(req, res, Comp => Comp(this.webService, req, res));
                     if (response && response.catch) {
                         response.catch((error: Error) => {
                             this.webService.emit("error", { error, req, res });
