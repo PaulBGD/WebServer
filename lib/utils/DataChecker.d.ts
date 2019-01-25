@@ -10,7 +10,7 @@ export declare class DataTypeError extends Error {
     typeName: string;
     constructor(typeName: string, message: string);
 }
-export declare const StringType: (opts: StringOpts) => (name: string, data: any) => DataType<string>;
+export declare const StringType: (opts: StringOpts) => DataType<string | null>;
 export declare function check<T>(obj: {
     [key: string]: any;
 }, checker: {

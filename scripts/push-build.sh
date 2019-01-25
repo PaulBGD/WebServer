@@ -3,7 +3,7 @@
 set -e
 
 git checkout build
-git merge master
+(git merge master || echo "Ignoring error")
 git checkout master -- src/
 yarn tsc-build
 git rm -r --cached src/
