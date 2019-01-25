@@ -10,4 +10,5 @@ git rm -r --cached src/
 rm -rf src/
 git add --force ./lib/
 (git commit -m 'build' && git push origin build) || echo "Nothing to push"
+echo "\nCommit hash: " $(git rev-parse HEAD)
 git checkout master
