@@ -86,11 +86,9 @@ export interface WebOpts {
     sessionName?: string;
 }
 export declare abstract class WebBackend {
-    protected webService: WebService;
-    constructor(opts: WebOpts, webService: WebService);
-    abstract listen(port: number, hostname: string, callback?: () => any): Server;
-    abstract addRoute<S extends Session>(params: ParsedRoute<S>): void;
-    abstract addStatic(route: string, folder: string): void;
+    abstract listen(webService: WebService, opts: WebOpts, port: number, hostname: string, callback?: () => any): Server;
+    abstract addRoute<S extends Session>(webService: WebService, opts: WebOpts, params: ParsedRoute<S>): void;
+    abstract addStatic(webService: WebService, opts: WebOpts, route: string, folder: string): void;
 }
 declare type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 export declare type ParsedRoute<S extends Session> = {
