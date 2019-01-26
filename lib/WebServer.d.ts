@@ -106,7 +106,7 @@ export declare class WebService extends EventEmitter {
     private backend;
     private setRoot;
     private sessionStore;
-    constructor(opts: WebOpts, backend: typeof WebBackend, sessionStore: SessionStore);
+    constructor(opts: WebOpts, backend: WebBackend, sessionStore: SessionStore);
     getOptions(): WebOpts;
     getSessionStore(): SessionStore;
     addRoute<S extends Session>(route: RouteObject<S>): void;
