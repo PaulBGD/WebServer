@@ -29,13 +29,13 @@ export default class RedisSession implements SessionStore {
     }
 
     // gets a lock on `key`.lock, so two simultanious requests won't overwrite each other
-    async storeSession(key: string, session: string): Promise<void> {
+    async storeSession(key: string, session: any): Promise<void> {
         const path = this.getPath(key);
 
         do {} while ((await this.redis.set(path + ".lock", "", ["EX", "3", "NX"])) === null); // todo maybe wait 5ms?
 
         const pipeline = this.redis.pipeline();
-        pipeline.set(path, session, "EX", this.opts.timeout_seconds || TIMEOUT);
+        pipeline.set(path, JSON.stringify(session), "EX", this.opts.timeout_seconds || TIMEOUT);
         pipeline.del(path + ".lock");
         await pipeline.exec();
     }

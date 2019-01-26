@@ -148,7 +148,7 @@ function parseRoute<S extends Session>(route: RouteObject<S>, used?: string[], p
 
 export interface SessionStore {
     getSession(key: string): Promise<any | null>;
-    storeSession(key: string, session: string): Promise<void>;
+    storeSession(key: string, session: any): Promise<void>;
     deleteSession(key: string): Promise<void>;
 }
 
@@ -193,7 +193,9 @@ export class WebService extends EventEmitter {
 }
 
 export interface Session {
-    destroy(): Promise<void>;
+    _existed: boolean;
+    _cookie: string;
+    _destroy(): Promise<void>;
 }
 export type RouteData<S extends Session> = {
     req: Request;

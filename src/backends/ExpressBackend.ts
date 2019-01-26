@@ -2,6 +2,7 @@ import express, { Application, Request, Response, NextFunction, static as expres
 import { WebBackend, WebOpts, ParsedRoute, RouteHandler, WebService, Request as WSRequest, Response as WSResponse, Session, RouteData } from "../WebServer";
 import { Server } from "net";
 import { parse, serialize } from "cookie";
+import { getSession, deepCopy, checkSession } from "../sessions/session-utils";
 
 class RequestWrapper implements WSRequest {
     private parsedCookies?: { [key: string]: string };
@@ -99,17 +100,20 @@ export default class ExpressBackend extends WebBackend {
             const handler = (eReq: Request, eRes: Response, next: NextFunction) => {
                 const req = new RequestWrapper(this.webService, eReq);
                 const res = new ResponseWrapper(this.webService, eRes);
-                try {
-                    const obj: RouteData<S> = { req, res, component: comp => comp(obj), ses: <any>null };
-                    const response = func(obj);
-                    if (response && response.catch) {
-                        response.catch((error: Error) => {
-                            this.webService.emit("error", { error, req, res });
-                        });
+                (async () => {
+                    try {
+                        const ses = await getSession(this.webService, req, res);
+                        const copied: S = <any>deepCopy(ses);
+                        const obj: RouteData<S> = { req, res, component: comp => comp(obj), ses: copied };
+                        const response = func(obj);
+                        if (response && response.then) {
+                            await response;
+                        }
+                        await checkSession(this.webService, copied, ses);
+                    } catch (error) {
+                        this.webService.emit("error", { error, req, res });
                     }
-                } catch (error) {
-                    this.webService.emit("error", { error, req, res });
-                }
+                })();
             };
             if (route.method === "GET") {
                 this.app.get(route.route, handler);
