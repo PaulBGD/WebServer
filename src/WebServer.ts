@@ -92,11 +92,9 @@ export interface WebOpts {
 }
 
 export abstract class WebBackend {
-    constructor(opts: WebOpts, protected webService: WebService) {}
-
-    abstract listen(port: number, hostname: string, callback?: () => any): Server;
-    abstract addRoute<S extends Session>(params: ParsedRoute<S>): void;
-    abstract addStatic(route: string, folder: string): void;
+    abstract listen(webService: WebService, opts: WebOpts, port: number, hostname: string, callback?: () => any): Server;
+    abstract addRoute<S extends Session>(webService: WebService, opts: WebOpts, params: ParsedRoute<S>): void;
+    abstract addStatic(webService: WebService, opts: WebOpts, route: string, folder: string): void;
 }
 
 type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
@@ -178,17 +176,17 @@ export class WebService extends EventEmitter {
         }
         const parsed = parseRoute(route);
         for (const route of parsed) {
-            this.backend.addRoute(route);
+            this.backend.addRoute(this, this.opts, route);
         }
         this.setRoot = true;
     }
 
     public listen(callback?: (info: string | AddressInfo) => any) {
-        const server = this.backend.listen(this.opts.port || 3000, this.opts.hostname || "localhost", () => callback && callback(server.address()));
+        const server = this.backend.listen(this, this.opts, this.opts.port || 3000, this.opts.hostname || "localhost", () => callback && callback(server.address()));
     }
 
     public addStatic(route: string, folder: string) {
-        this.backend.addStatic(route, folder);
+        this.backend.addStatic(this, this.opts, route, folder);
     }
 }
 

@@ -1,7 +1,8 @@
-import { WebBackend, WebOpts, ParsedRoute, RouteHandler, WebService, Request as WSRequest, Response as WSResponse, Session, RouteData } from "../WebServer";
-import { App, Application, Request, Response } from "uWebSockets.js";
-import { Server } from "net";
 import { parse, serialize } from "cookie";
+import { Server } from "net";
+import { App, Application, Request, Response } from "uWebSockets.js";
+import { checkSession, deepCopy, getSession } from "../sessions/session-utils";
+import { ParsedRoute, Request as WSRequest, Response as WSResponse, RouteData, RouteHandler, Session, WebBackend, WebOpts, WebService } from "../WebServer";
 
 class RequestWrapper implements WSRequest {
     private parsedCookies?: { [key: string]: string };
@@ -85,13 +86,13 @@ class ResponseWrapper implements WSResponse {
 export default class UWSBackend extends WebBackend {
     private app: Application;
 
-    constructor(private opts: WebOpts, webService: WebService) {
-        super(opts, webService);
+    constructor() {
+        super();
 
         this.app = App();
     }
 
-    listen(port: number, hostname: string, callback?: () => any): Server {
+    listen(webService: WebService, opts: WebOpts, port: number, hostname: string, callback?: () => any): Server {
         // todo.. not this
         this.app.listen(port, () => callback && callback());
         return <any>{
@@ -102,23 +103,26 @@ export default class UWSBackend extends WebBackend {
         };
     }
 
-    addRoute<S extends Session>(route: ParsedRoute<S>) {
+    addRoute<S extends Session>(webService: WebService, opts: WebOpts, route: ParsedRoute<S>) {
         if (typeof route.handler === "function") {
             const func: RouteHandler<S> = route.handler;
             const handler = (eReq: Request, eRes: Response) => {
-                const req = new RequestWrapper(this.webService, eReq);
-                const res = new ResponseWrapper(this.webService, eRes);
-                try {
-                    const obj: RouteData<S> = { req, res, component: comp => comp(obj), ses: <any>null };
-                    const response = func(obj);
-                    if (response && response.catch) {
-                        response.catch((error: Error) => {
-                            this.webService.emit("error", { error, req, res });
-                        });
+                const req = new RequestWrapper(webService, eReq);
+                const res = new ResponseWrapper(webService, eRes);
+                (async () => {
+                    try {
+                        const ses = await getSession(webService, req, res);
+                        const copied: S = <any>deepCopy(ses);
+                        const obj: RouteData<S> = { req, res, component: comp => comp(obj), ses: copied };
+                        const response = func(obj);
+                        if (response && response.then) {
+                            await response;
+                        }
+                        await checkSession(webService, copied, ses);
+                    } catch (error) {
+                        webService.emit("error", { error, req, res });
                     }
-                } catch (error) {
-                    this.webService.emit("error", { error, req, res });
-                }
+                })();
             };
             if (route.method === "GET") {
                 this.app.get(route.route, handler);
@@ -133,12 +137,12 @@ export default class UWSBackend extends WebBackend {
             }
         } else {
             for (const val of route.handler) {
-                this.addRoute(val);
+                this.addRoute(webService, opts, val);
             }
         }
     }
 
-    addStatic(route: string, folder: string) {
+    addStatic(webService: WebService, opts: WebOpts, route: string, folder: string) {
         throw new Error("Method not implemented.");
     }
 }
