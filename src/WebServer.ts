@@ -2,6 +2,8 @@ import { Writable, Readable } from "stream";
 import { Server, AddressInfo } from "net";
 import { join } from "path";
 import { EventEmitter } from "events";
+import MemorySession from "./sessions/MemorySession";
+import { CookieParseOptions, CookieSerializeOptions } from "cookie";
 
 export interface Request {
     /**
@@ -19,9 +21,16 @@ export interface Request {
     /**
      * Returns value for key header, ignoring case
      * @param header the header to get
-     * @returns string of header value
+     * @returns string of header value, or null
      */
     getHeader(header: string): string | null;
+
+    /**
+     * Returns cookie for key name
+     * @param cookie the cookie name to get
+     * @returns the cookie's value, or null
+     */
+    getCookie(cookie: string): string | null;
 
     /**
      * The internal stream, for reading other data
@@ -36,7 +45,14 @@ export interface Response {
      * @param value value of header
      * @returns current response
      */
-    setHeader(header: string, value: string | number): Response;
+    setHeader(header: string, value: string | string[] | number): Response;
+    /**
+     * Sets the cookie of the specific name
+     * @param name cookie name
+     * @param value value of cookie
+     * @returns current response
+     */
+    setCookie(name: string, value: string): Response;
     /**
      * Sets the status code of the response
      * @param statusCode the status code to return
@@ -68,29 +84,34 @@ export interface Response {
 export interface WebOpts {
     hostname?: string;
     port?: number;
+    cookie?: {
+        parse: CookieParseOptions;
+        serialize: CookieSerializeOptions;
+    };
+    sessionName?: string;
 }
 
 export abstract class WebBackend {
     constructor(opts: WebOpts, protected webService: WebService) {}
 
     abstract listen(port: number, hostname: string, callback?: () => any): Server;
-    abstract addRoute(params: ParsedRoute): void;
+    abstract addRoute<S extends Session>(params: ParsedRoute<S>): void;
     abstract addStatic(route: string, folder: string): void;
 }
 
 type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 
-export type ParsedRoute = {
+export type ParsedRoute<S extends Session> = {
     route: string; // full route
     method: Method;
-    handler: RouteHandler | ParsedRoute[];
+    handler: RouteHandler<S> | ParsedRoute<S>[];
 };
 
-function parseRoute(route: RouteObject, used?: string[], parent = "/"): ParsedRoute[] {
+function parseRoute<S extends Session>(route: RouteObject<S>, used?: string[], parent = "/"): ParsedRoute<S>[] {
     if (!used) {
         used = [];
     }
-    const parsed: ParsedRoute[] = [];
+    const parsed: ParsedRoute<S>[] = [];
     for (const key in route) {
         const split = key.split(" ");
         let routePath;
@@ -108,7 +129,7 @@ function parseRoute(route: RouteObject, used?: string[], parent = "/"): ParsedRo
         const routeHandler = route[key];
         let handler;
         if (typeof routeHandler === "function") {
-            handler = <RouteHandler>routeHandler;
+            handler = <RouteHandler<S>>routeHandler;
             if (used.indexOf(fullRoute) > -1) {
                 throw new Error("Route " + fullRoute + " registered more than once");
             }
@@ -125,16 +146,33 @@ function parseRoute(route: RouteObject, used?: string[], parent = "/"): ParsedRo
     return parsed;
 }
 
+export interface SessionStore {
+    getSession(key: string): Promise<any | null>;
+    storeSession(key: string, session: string): Promise<void>;
+    deleteSession(key: string): Promise<void>;
+}
+
 export class WebService extends EventEmitter {
     private backend: WebBackend;
     private setRoot = false;
-    constructor(private opts: WebOpts, backend: typeof WebBackend) {
+    private sessionStore: SessionStore;
+
+    constructor(private opts: WebOpts, backend: typeof WebBackend, sessionStore: SessionStore) {
         super();
 
         this.backend = new (<any>backend)(opts, this);
+        this.sessionStore = sessionStore || new MemorySession();
     }
 
-    public setRoute(route: RouteObject) {
+    public getOptions(): WebOpts {
+        return this.opts;
+    }
+
+    public getSessionStore() {
+        return this.sessionStore;
+    }
+
+    public addRoute<S extends Session>(route: RouteObject<S>) {
         if (this.setRoot) {
             throw new Error("Route already set");
         }
@@ -154,8 +192,17 @@ export class WebService extends EventEmitter {
     }
 }
 
-export type RouteHandler = (req: Request, res: Response, component: <T>(type: ComponentStatic<T>) => T) => Promise<any> | any;
+export interface Session {
+    destroy(): Promise<void>;
+}
+export type RouteData<S extends Session> = {
+    req: Request;
+    res: Response;
+    ses: S;
+    component: <T>(type: ComponentStatic<T, S>) => T;
+};
+export type RouteHandler<S extends Session> = (data: RouteData<S>) => Promise<any> | any;
 
-type RouteObject = { [key: string]: RouteHandler | RouteObject };
+type RouteObject<S extends Session> = { [key: string]: RouteHandler<S> | RouteObject<S> };
 
-type ComponentStatic<T> = (service: WebService, req: Request, res: Response) => T;
+type ComponentStatic<T, S extends Session> = (data: RouteData<S>) => T;

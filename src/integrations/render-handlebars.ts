@@ -1,10 +1,10 @@
 import { readFile } from "fs";
 import { compile } from "handlebars";
-import { WebService, Request, Response } from "../WebServer";
+import { RouteData } from "../WebServer";
 
 const PROD_TEMPLATES: { [key: string]: HandlebarsTemplateDelegate } = {};
 
-export default (service: WebService, req: Request, res: Response) => async (sourceFile: string, data?: any) => {
+export default ({ res }: RouteData<any>) => async (sourceFile: string, data?: any) => {
     let cachedTemplate;
     if (process.env.NODE_ENV === "production" && (cachedTemplate = PROD_TEMPLATES[sourceFile])) {
         return res.send(cachedTemplate(data));

@@ -1,5 +1,5 @@
-import { Request, Response, WebService } from "../WebServer";
 import { parse, ParsedUrlQuery } from "querystring";
+import { RouteData } from "../WebServer";
 
 // class CaselessMap<V> extends Map<string, V> {
 //     constructor(entries?: ReadonlyArray<[string, V]> | null) {
@@ -19,7 +19,7 @@ import { parse, ParsedUrlQuery } from "querystring";
 //     }
 // }
 
-export default (service: WebService, req: Request, res: Response) => async (): Promise<{ [key: string]: string | string[] } | null> => {
+export default ({ req }: RouteData<any>) => async (): Promise<{ [key: string]: string | string[] } | null> => {
     const type = req.getHeader("Content-Type");
     if (!type) {
         return null;

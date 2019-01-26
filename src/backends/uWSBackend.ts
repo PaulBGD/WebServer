@@ -1,9 +1,12 @@
-import { WebBackend, WebOpts, ParsedRoute, RouteHandler, WebService, Request as WSRequest, Response as WSResponse } from "../WebServer";
+import { WebBackend, WebOpts, ParsedRoute, RouteHandler, WebService, Request as WSRequest, Response as WSResponse, Session, RouteData } from "../WebServer";
 import { App, Application, Request, Response } from "uWebSockets.js";
 import { Server } from "net";
+import { parse, serialize } from "cookie";
 
 class RequestWrapper implements WSRequest {
-    constructor(private req: Request) {}
+    private parsedCookies?: { [key: string]: string };
+
+    constructor(private webService: WebService, private req: Request) {}
 
     get ip(): string {
         throw new Error("Unimplemented");
@@ -24,16 +27,38 @@ class RequestWrapper implements WSRequest {
     getHeader(header: string): string | null {
         return this.req.getHeader(header) || null;
     }
+
+    getCookie(cookie: string): string | null {
+        const header = this.getHeader("Cookie");
+        if (!header) {
+            return null;
+        }
+        if (!this.parsedCookies) {
+            const { cookie } = this.webService.getOptions();
+            this.parsedCookies = parse(header, cookie ? cookie.parse : undefined);
+        }
+        return this.parsedCookies[cookie] || null;
+    }
 }
 
 class ResponseWrapper implements WSResponse {
-    constructor(private res: Response) {}
+    private previousCookies: string[] = [];
+
+    constructor(private webService: WebService, private res: Response) {}
 
     get stream(): any {
         throw new Error("unimplemented");
     }
 
-    setHeader(header: string, value: string | number): WSResponse {
+    setCookie(name: string, value: string): WSResponse {
+        const { cookie } = this.webService.getOptions();
+        const serialized = serialize(name, value, cookie ? cookie.serialize : undefined);
+        this.previousCookies.push(serialized);
+        this.setHeader("Set-Cookie", this.previousCookies);
+        return this;
+    }
+
+    setHeader(header: string, value: string | string[] | number): WSResponse {
         this.res.writeHeader(header, String(value));
         return this;
     }
@@ -77,14 +102,15 @@ export default class UWSBackend extends WebBackend {
         };
     }
 
-    addRoute(route: ParsedRoute) {
+    addRoute<S extends Session>(route: ParsedRoute<S>) {
         if (typeof route.handler === "function") {
-            const func: RouteHandler = route.handler;
+            const func: RouteHandler<S> = route.handler;
             const handler = (eReq: Request, eRes: Response) => {
-                const req = new RequestWrapper(eReq);
-                const res = new ResponseWrapper(eRes);
+                const req = new RequestWrapper(this.webService, eReq);
+                const res = new ResponseWrapper(this.webService, eRes);
                 try {
-                    const response = func(req, res, Comp => Comp(this.webService, req, res));
+                    const obj: RouteData<S> = { req, res, component: comp => comp(obj), ses: <any>null };
+                    const response = func(obj);
                     if (response && response.catch) {
                         response.catch((error: Error) => {
                             this.webService.emit("error", { error, req, res });
