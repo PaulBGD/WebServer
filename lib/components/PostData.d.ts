@@ -1,5 +1,5 @@
-import { Request, Response, WebService } from "../WebServer";
-declare const _default: (service: WebService, req: Request, res: Response) => () => Promise<{
+import { RouteData } from "../WebServer";
+declare const _default: ({ req }: RouteData<any>) => () => Promise<{
     [key: string]: string | string[];
 } | null>;
 export default _default;

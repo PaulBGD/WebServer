@@ -5,6 +5,7 @@ set -e
 git checkout build
 (git merge master || echo "Ignoring error")
 git checkout master -- src/
+rm -rf lib/
 yarn tsc-build
 git rm -r --cached src/
 rm -rf src/

@@ -2,6 +2,7 @@
 import { Writable, Readable } from "stream";
 import { Server, AddressInfo } from "net";
 import { EventEmitter } from "events";
+import { CookieParseOptions, CookieSerializeOptions } from "cookie";
 export interface Request {
     /**
      * IP the request originated from. if behind reverse-proxy, provides original IP
@@ -20,9 +21,15 @@ export interface Request {
     /**
      * Returns value for key header, ignoring case
      * @param header the header to get
-     * @returns string of header value
+     * @returns string of header value, or null
      */
     getHeader(header: string): string | null;
+    /**
+     * Returns cookie for key name
+     * @param cookie the cookie name to get
+     * @returns the cookie's value, or null
+     */
+    getCookie(cookie: string): string | null;
     /**
      * The internal stream, for reading other data
      */
@@ -35,7 +42,14 @@ export interface Response {
      * @param value value of header
      * @returns current response
      */
-    setHeader(header: string, value: string | number): Response;
+    setHeader(header: string, value: string | string[] | number): Response;
+    /**
+     * Sets the cookie of the specific name
+     * @param name cookie name
+     * @param value value of cookie
+     * @returns current response
+     */
+    setCookie(name: string, value: string): Response;
     /**
      * Sets the status code of the response
      * @param statusCode the status code to return
@@ -65,32 +79,56 @@ export interface Response {
 export interface WebOpts {
     hostname?: string;
     port?: number;
+    cookie?: {
+        parse: CookieParseOptions;
+        serialize: CookieSerializeOptions;
+    };
+    sessionName?: string;
 }
 export declare abstract class WebBackend {
     protected webService: WebService;
     constructor(opts: WebOpts, webService: WebService);
     abstract listen(port: number, hostname: string, callback?: () => any): Server;
-    abstract addRoute(params: ParsedRoute): void;
+    abstract addRoute<S extends Session>(params: ParsedRoute<S>): void;
     abstract addStatic(route: string, folder: string): void;
 }
 declare type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
-export declare type ParsedRoute = {
+export declare type ParsedRoute<S extends Session> = {
     route: string;
     method: Method;
-    handler: RouteHandler | ParsedRoute[];
+    handler: RouteHandler<S> | ParsedRoute<S>[];
 };
+export interface SessionStore {
+    getSession(key: string): Promise<any | null>;
+    storeSession(key: string, session: any): Promise<void>;
+    deleteSession(key: string): Promise<void>;
+}
 export declare class WebService extends EventEmitter {
     private opts;
     private backend;
     private setRoot;
-    constructor(opts: WebOpts, backend: typeof WebBackend);
-    setRoute(route: RouteObject): void;
+    private sessionStore;
+    constructor(opts: WebOpts, backend: typeof WebBackend, sessionStore: SessionStore);
+    getOptions(): WebOpts;
+    getSessionStore(): SessionStore;
+    addRoute<S extends Session>(route: RouteObject<S>): void;
     listen(callback?: (info: string | AddressInfo) => any): void;
     addStatic(route: string, folder: string): void;
 }
-export declare type RouteHandler = (req: Request, res: Response, component: <T>(type: ComponentStatic<T>) => T) => Promise<any> | any;
-declare type RouteObject = {
-    [key: string]: RouteHandler | RouteObject;
+export interface Session {
+    _existed: boolean;
+    _cookie: string;
+    _destroy(): Promise<void>;
+}
+export declare type RouteData<S extends Session> = {
+    req: Request;
+    res: Response;
+    ses: S;
+    component: <T>(type: ComponentStatic<T, S>) => T;
 };
-declare type ComponentStatic<T> = (service: WebService, req: Request, res: Response) => T;
+export declare type RouteHandler<S extends Session> = (data: RouteData<S>) => Promise<any> | any;
+declare type RouteObject<S extends Session> = {
+    [key: string]: RouteHandler<S> | RouteObject<S>;
+};
+declare type ComponentStatic<T, S extends Session> = (data: RouteData<S>) => T;
 export {};
