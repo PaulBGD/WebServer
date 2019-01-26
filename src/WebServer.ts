@@ -155,10 +155,10 @@ export class WebService extends EventEmitter {
     private setRoot = false;
     private sessionStore: SessionStore;
 
-    constructor(private opts: WebOpts, backend: typeof WebBackend, sessionStore: SessionStore) {
+    constructor(private opts: WebOpts, backend: WebBackend, sessionStore: SessionStore) {
         super();
 
-        this.backend = new (<any>backend)(opts, this);
+        this.backend = backend;
         this.sessionStore = sessionStore || new MemorySession();
     }
 
