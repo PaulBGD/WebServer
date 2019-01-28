@@ -203,6 +203,6 @@ export type RouteData<S extends Session> = {
 };
 export type RouteHandler<S extends Session> = (data: RouteData<S>) => Promise<any> | any;
 
-type RouteObject<S extends Session> = { [key: string]: RouteHandler<S> | RouteObject<S> };
+export type RouteObject<S extends Session> = { [key: string]: RouteHandler<S> | RouteObject<S> };
 
-type ComponentStatic<T, S extends Session> = (data: RouteData<S>) => T;
+export type ComponentStatic<T, S extends Session> = (data: RouteData<S>) => T;
