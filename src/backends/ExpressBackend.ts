@@ -1,11 +1,14 @@
-import express, { Application, Request, Response, NextFunction, static as expressStatic } from "express";
-import { WebBackend, WebOpts, ParsedRoute, RouteHandler, WebService, Request as WSRequest, Response as WSResponse, Session, RouteData } from "../WebServer";
+import { parse as cookieParse, serialize } from "cookie";
+import express, { Application, NextFunction, Request, Response, static as expressStatic } from "express";
 import { Server } from "net";
-import { parse, serialize } from "cookie";
-import { getSession, deepCopy, checkSession } from "../sessions/session-utils";
+import { parse } from "querystring";
+import { parse as parseURL } from "url";
+import { checkSession, deepCopy, getSession } from "../sessions/session-utils";
+import { ParsedRoute, Request as WSRequest, Response as WSResponse, RouteData, RouteHandler, Session, WebBackend, WebOpts, WebService } from "../WebServer";
 
 class RequestWrapper implements WSRequest {
     private parsedCookies?: { [key: string]: string };
+    private parsedQuery?: { [key: string]: string | string[] };
 
     constructor(private webService: WebService, private req: Request) {}
 
@@ -15,6 +18,18 @@ class RequestWrapper implements WSRequest {
 
     get params() {
         return this.req.params;
+    }
+
+    get query() {
+        if (!this.parsedQuery) {
+            const { query } = parseURL(this.req.originalUrl);
+            if (query) {
+                this.parsedQuery = parse(query);
+            } else {
+                this.parsedQuery = {};
+            }
+        }
+        return this.parsedQuery;
     }
 
     get path() {
@@ -36,7 +51,7 @@ class RequestWrapper implements WSRequest {
         }
         if (!this.parsedCookies) {
             const { cookie } = this.webService.getOptions();
-            this.parsedCookies = parse(header, cookie ? cookie.parse : undefined);
+            this.parsedCookies = cookieParse(header, cookie ? cookie.parse : undefined);
         }
         return this.parsedCookies[cookie] || null;
     }
@@ -94,8 +109,8 @@ export default class ExpressBackend extends WebBackend {
         return this.app.listen(port, hostname, callback);
     }
 
-    public addRoute<S extends Session>(webService: WebService, opts: WebOpts, route: ParsedRoute<S>) {
-        if (typeof route.handler === "function") {
+    public addRoute<S extends Session>(webService: WebService, opts: WebOpts, routes: ParsedRoute<S>) {
+        for (const route of routes) {
             const func: RouteHandler<S> = route.handler;
             const handler = (eReq: Request, eRes: Response, next: NextFunction) => {
                 const req = new RequestWrapper(webService, eReq);
@@ -125,10 +140,6 @@ export default class ExpressBackend extends WebBackend {
                 this.app.delete(route.route, handler);
             } else if (route.method === "PUT") {
                 this.app.put(route.route, handler);
-            }
-        } else {
-            for (const val of route.handler) {
-                this.addRoute(webService, opts, val);
             }
         }
     }

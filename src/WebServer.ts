@@ -11,9 +11,13 @@ export interface Request {
      */
     ip: string;
     /**
-     * Paramaters used in path name such as /:path where /pathpath returns {path: "pathpath"}
+     * Parameters used in path name such as /:path where /pathpath returns {path: "pathpath"}
      */
     params: { [key: string]: string };
+    /**
+     * Query provides values provided in the URL
+     */
+    query: { [key: string]: string | string[] };
     /**
      * Returns that path without query
      */
@@ -100,46 +104,32 @@ export abstract class WebBackend {
 type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 
 export type ParsedRoute<S extends Session> = {
-    route: string; // full route
+    route: string;
     method: Method;
-    handler: RouteHandler<S> | ParsedRoute<S>[];
-};
+    handler: RouteHandler<S>;
+}[];
 
-function parseRoute<S extends Session>(route: RouteObject<S>, used?: string[], parent = "/"): ParsedRoute<S>[] {
+function parseRoute<S extends Session>(route: RouteObject<S>, used?: string[], parent = "/"): ParsedRoute<S> {
     if (!used) {
         used = [];
     }
-    const parsed: ParsedRoute<S>[] = [];
+    const parsed: ParsedRoute<S> = [];
     for (const key in route) {
-        const split = key.split(" ");
-        let routePath;
-        let method: Method = "GET";
-        if (split.length > 2 || (split.length === 2 && ["GET", "POST", "PATCH", "PUT", "DELETE"].indexOf(split[0]) < 0)) {
-            throw new Error(`Route "${join(parent, key)}" has spaces in it. Please use %20 to escape spaces.`);
-        }
-        if (["GET", "POST", "PATCH", "PUT", "DELETE"].indexOf(split[0]) > -1) {
-            routePath = split.slice(1).join(" ");
-            method = <Method>split[0];
-        } else {
-            routePath = key;
-        }
-        const fullRoute = join(parent, routePath);
-        const routeHandler = route[key];
-        let handler;
-        if (typeof routeHandler === "function") {
-            handler = <RouteHandler<S>>routeHandler;
-            if (used.indexOf(fullRoute) > -1) {
+        const fullRoute = join(parent, key);
+        const routeMethod = route[key];
+        if (routeMethod instanceof RouteMethod) {
+            const key = routeMethod.method + "\0" + fullRoute;
+            if (used.indexOf(key) > -1) {
                 throw new Error("Route " + fullRoute + " registered more than once");
             }
-            used.push(method + "\0" + fullRoute);
+            used.push(key);
+            parsed.push({
+                route: fullRoute,
+                ...routeMethod,
+            });
         } else {
-            handler = parseRoute(routeHandler, used, fullRoute);
+            parsed.push(...parseRoute(routeMethod, used, fullRoute));
         }
-        parsed.push({
-            route: fullRoute,
-            method,
-            handler,
-        });
     }
     return parsed;
 }
@@ -175,9 +165,7 @@ export class WebService extends EventEmitter {
             throw new Error("Route already set");
         }
         const parsed = parseRoute(route);
-        for (const route of parsed) {
-            this.backend.addRoute(this, this.opts, route);
-        }
+        this.backend.addRoute(this, this.opts, parsed);
         this.setRoot = true;
     }
 
@@ -188,6 +176,21 @@ export class WebService extends EventEmitter {
     public addStatic(route: string, folder: string) {
         this.backend.addStatic(this, this.opts, route, folder);
     }
+}
+
+const METHOD = (method: Method) => <S extends Session>(handler: RouteHandler<S>) => ({
+    method,
+    handler,
+});
+
+export const GET = METHOD("GET");
+export const POST = METHOD("POST");
+export const PATCH = METHOD("PATCH");
+export const PUT = METHOD("PUT");
+export const DELETE = METHOD("DELETE");
+
+export class RouteMethod<S extends Session> {
+    constructor(public method: Method, public handler: RouteHandler<S>) {}
 }
 
 export interface Session {
@@ -203,6 +206,6 @@ export type RouteData<S extends Session> = {
 };
 export type RouteHandler<S extends Session> = (data: RouteData<S>) => Promise<any> | any;
 
-export type RouteObject<S extends Session> = { [key: string]: RouteHandler<S> | RouteObject<S> };
+export type RouteObject<S extends Session> = { [key: string]: RouteMethod<S> | RouteObject<S> };
 
 export type ComponentStatic<T, S extends Session> = (data: RouteData<S>) => T;
