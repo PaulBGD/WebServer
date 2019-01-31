@@ -9,10 +9,16 @@ export interface Request {
      */
     ip: string;
     /**
-     * Paramaters used in path name such as /:path where /pathpath returns {path: "pathpath"}
+     * Parameters used in path name such as /:path where /pathpath returns {path: "pathpath"}
      */
     params: {
         [key: string]: string;
+    };
+    /**
+     * Query provides values provided in the URL
+     */
+    query: {
+        [key: string]: string | string[];
     };
     /**
      * Returns that path without query
@@ -94,8 +100,8 @@ declare type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 export declare type ParsedRoute<S extends Session> = {
     route: string;
     method: Method;
-    handler: RouteHandler<S> | ParsedRoute<S>[];
-};
+    handler: RouteHandler<S>;
+}[];
 export interface SessionStore {
     getSession(key: string): Promise<any | null>;
     storeSession(key: string, session: any): Promise<void>;
@@ -113,6 +119,31 @@ export declare class WebService extends EventEmitter {
     listen(callback?: (info: string | AddressInfo) => any): void;
     addStatic(route: string, folder: string): void;
 }
+export declare const GET: <S extends Session>(handler: RouteHandler<S>) => {
+    method: Method;
+    handler: RouteHandler<S>;
+};
+export declare const POST: <S extends Session>(handler: RouteHandler<S>) => {
+    method: Method;
+    handler: RouteHandler<S>;
+};
+export declare const PATCH: <S extends Session>(handler: RouteHandler<S>) => {
+    method: Method;
+    handler: RouteHandler<S>;
+};
+export declare const PUT: <S extends Session>(handler: RouteHandler<S>) => {
+    method: Method;
+    handler: RouteHandler<S>;
+};
+export declare const DELETE: <S extends Session>(handler: RouteHandler<S>) => {
+    method: Method;
+    handler: RouteHandler<S>;
+};
+export declare class RouteMethod<S extends Session> {
+    method: Method;
+    handler: RouteHandler<S>;
+    constructor(method: Method, handler: RouteHandler<S>);
+}
 export interface Session {
     _existed: boolean;
     _cookie: string;
@@ -126,7 +157,7 @@ export declare type RouteData<S extends Session> = {
 };
 export declare type RouteHandler<S extends Session> = (data: RouteData<S>) => Promise<any> | any;
 export declare type RouteObject<S extends Session> = {
-    [key: string]: RouteHandler<S> | RouteObject<S>;
+    [key: string]: RouteMethod<S> | RouteObject<S>;
 };
 export declare type ComponentStatic<T, S extends Session> = (data: RouteData<S>) => T;
 export {};
