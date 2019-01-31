@@ -178,10 +178,7 @@ export class WebService extends EventEmitter {
     }
 }
 
-const METHOD = (method: Method) => <S extends Session>(handler: RouteHandler<S>) => ({
-    method,
-    handler,
-});
+const METHOD = (method: Method) => <S extends Session>(handler: RouteHandler<S>) => new RouteMethod(method, handler);
 
 export const GET = METHOD("GET");
 export const POST = METHOD("POST");
