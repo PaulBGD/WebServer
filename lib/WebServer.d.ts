@@ -119,26 +119,11 @@ export declare class WebService extends EventEmitter {
     listen(callback?: (info: string | AddressInfo) => any): void;
     addStatic(route: string, folder: string): void;
 }
-export declare const GET: <S extends Session>(handler: RouteHandler<S>) => {
-    method: Method;
-    handler: RouteHandler<S>;
-};
-export declare const POST: <S extends Session>(handler: RouteHandler<S>) => {
-    method: Method;
-    handler: RouteHandler<S>;
-};
-export declare const PATCH: <S extends Session>(handler: RouteHandler<S>) => {
-    method: Method;
-    handler: RouteHandler<S>;
-};
-export declare const PUT: <S extends Session>(handler: RouteHandler<S>) => {
-    method: Method;
-    handler: RouteHandler<S>;
-};
-export declare const DELETE: <S extends Session>(handler: RouteHandler<S>) => {
-    method: Method;
-    handler: RouteHandler<S>;
-};
+export declare const GET: <S extends Session>(handler: RouteHandler<S>) => RouteMethod<S>;
+export declare const POST: <S extends Session>(handler: RouteHandler<S>) => RouteMethod<S>;
+export declare const PATCH: <S extends Session>(handler: RouteHandler<S>) => RouteMethod<S>;
+export declare const PUT: <S extends Session>(handler: RouteHandler<S>) => RouteMethod<S>;
+export declare const DELETE: <S extends Session>(handler: RouteHandler<S>) => RouteMethod<S>;
 export declare class RouteMethod<S extends Session> {
     method: Method;
     handler: RouteHandler<S>;
