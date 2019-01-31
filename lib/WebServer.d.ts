@@ -142,7 +142,7 @@ export declare type RouteData<S extends Session> = {
 };
 export declare type RouteHandler<S extends Session> = (data: RouteData<S>) => Promise<any> | any;
 export declare type RouteObject<S extends Session> = {
-    [key: string]: RouteMethod<S> | RouteObject<S>;
+    [key: string]: RouteMethod<S> | RouteHandler<S> | RouteObject<S>;
 };
 export declare type ComponentStatic<T, S extends Session> = (data: RouteData<S>) => T;
 export {};
