@@ -19,7 +19,7 @@ import { RouteData } from "../WebServer";
 //     }
 // }
 
-export default ({ req }: RouteData<any>) => async (): Promise<{ [key: string]: string | string[] } | null> => {
+const PostData = async ({ req }: RouteData<any>): Promise<{ [key: string]: string | string[] } | null> => {
     const type = req.getHeader("Content-Type");
     if (!type) {
         return null;
@@ -48,3 +48,5 @@ export default ({ req }: RouteData<any>) => async (): Promise<{ [key: string]: s
 
     return encoded;
 };
+
+export default PostData;
