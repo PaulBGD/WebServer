@@ -116,7 +116,11 @@ function parseRoute<S extends Session>(route: RouteObject<S>, used?: string[], p
     const parsed: ParsedRoute<S> = [];
     for (const key in route) {
         const fullRoute = join(parent, key);
-        const routeMethod = route[key];
+        let routeMethod = route[key];
+        if (typeof routeMethod === "function") {
+            routeMethod = new RouteMethod("GET", routeMethod);
+        }
+
         if (routeMethod instanceof RouteMethod) {
             const key = routeMethod.method + "\0" + fullRoute;
             if (used.indexOf(key) > -1) {
@@ -203,6 +207,6 @@ export type RouteData<S extends Session> = {
 };
 export type RouteHandler<S extends Session> = (data: RouteData<S>) => Promise<any> | any;
 
-export type RouteObject<S extends Session> = { [key: string]: RouteMethod<S> | RouteObject<S> };
+export type RouteObject<S extends Session> = { [key: string]: RouteMethod<S> | RouteHandler<S> | RouteObject<S> };
 
 export type ComponentStatic<T, S extends Session> = (data: RouteData<S>) => T;
